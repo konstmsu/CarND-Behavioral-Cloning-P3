@@ -3,20 +3,30 @@ import csv
 import os
 from keras.preprocessing.image import load_img, img_to_array
 
-recording_path = lambda path: os.path.join('../recording/track1_round1', path)
+def load_csv(folder):
+    recording_path = lambda path: os.path.join(folder, path)
 
-all_image_paths = []
-all_steering_angles = []
-with open(recording_path("driving_log.csv")) as csv_file:
-    for row in csv.reader(csv_file):
-        all_image_paths.append(recording_path("IMG//" + row[0].split('\\')[-1]))
-        all_steering_angles.append(float(row[3]))
+    image_paths = []
+    steering_angles = []
+    with open(recording_path("driving_log.csv")) as csv_file:
+        for row in csv.reader(csv_file):
+            if row[0] == 'center':
+                continue
+            img_file_name = row[0].replace('\\', '/').split('/')[-1]
+            image_paths.append(recording_path("IMG//" + img_file_name))
+            steering_angles.append(float(row[3]))
+			
+    print("%s images in '%s'" % (len(image_paths), folder))
 
+    return (image_paths, steering_angles)
+
+(all_image_paths, all_steering_angles) = load_csv('../recording/track1_round1')
+	
 def take(array, indexes):
     return [array[i] for i in indexes]
 
-train_indicies = np.array(np.arange(811, 933))
-print(train_indicies)
+#train_indicies = np.array(np.arange(811, 933))
+train_indicies = range(len(all_image_paths))
 train_image_paths = take(all_image_paths, train_indicies)
 train_steering_angles = np.array(take(all_steering_angles, train_indicies))
 
@@ -25,9 +35,10 @@ def load_image(path):
 
 train_images = np.asarray([load_image(p) for p in train_image_paths])
 
-test_indicies = range(200)
-test_images = np.asarray([load_image(all_image_paths[p]) for p in test_indicies])
-test_steering_angles = np.array(take(all_steering_angles, test_indicies))
+(test_all_image_paths, test_all_steering_angles) = load_csv('../data')
+test_indicies = range(1000)
+test_images = np.asarray([load_image(test_all_image_paths[p]) for p in test_indicies])
+test_steering_angles = np.array(take(test_all_steering_angles, test_indicies))
 
 #import matplotlib.pyplot as plt
 #plt.imshow(images[0])
