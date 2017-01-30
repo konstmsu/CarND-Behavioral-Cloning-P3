@@ -1,0 +1,19 @@
+{
+    "remotePath": "./",
+    "host": "konstmsu-carnd.eastus.cloudapp.azure.com",
+    "username": "carnd",
+    "password": "password",
+    "port": 21,
+    "secure": false,
+    "protocol": "ftp",
+    "uploadOnSave": false,
+    "passive": false,
+    "debug": false,
+    "privateKeyPath": "C:/Users/kaspir/Desktop/carnd_rsa_private.ppk",
+    "passphrase": null,
+    "ignore": [
+        "\\.vscode",
+        "\\.git",
+        "\\.DS_Store"
+    ]
+}
