@@ -1,12 +1,15 @@
 import numpy as np
 import csv
+import os
 from keras.preprocessing.image import load_img, img_to_array
+
+recording_path = lambda path: os.path.join('../recording/track1_round1', path)
 
 all_image_paths = []
 all_steering_angles = []
-with open(r"C:\projects\CarND\Project3\recording\track1_round1\driving_log.csv") as csv_file:
+with open(recording_path("driving_log.csv")) as csv_file:
     for row in csv.reader(csv_file):
-        all_image_paths.append(row[0])
+        all_image_paths.append(recording_path("IMG//" + row[0].split('\\')[-1]))
         all_steering_angles.append(float(row[3]))
 
 def take(array, indexes):
