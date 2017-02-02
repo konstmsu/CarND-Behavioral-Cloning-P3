@@ -4,11 +4,14 @@
 import os
 import csv
 import glob
+import sklearn.model_selection
 import numpy as np
 import tensorflow as tf
 import keras
 from keras.preprocessing.image import load_img, img_to_array
-from sklearn.utils import shuffle
+
+
+image_size = (160, 320)
 
 
 def load_csv(folders):
@@ -37,6 +40,7 @@ def load_csv(folders):
 
     return (paths, angles)
 
+
 def get_model():
     from keras.models import Sequential
     from keras.layers.core import Dense, Activation, Flatten, Dropout, Lambda
@@ -44,9 +48,7 @@ def get_model():
 
     model = Sequential()
 
-    #model.add(Lambda(normalize, input_shape=(160, 320, 3), output_shape=(40, 80, 3)))
-
-    model.add(Convolution2D(24, 5, 5, subsample=(2, 2), input_shape=(160, 320, 3)))
+    model.add(Convolution2D(24, 5, 5, subsample=(2, 2), input_shape=(*image_size, 3)))
     model.add(Activation('relu'))
 
     model.add(Convolution2D(36, 5, 5, subsample=(2, 2)))
@@ -55,16 +57,16 @@ def get_model():
     model.add(Convolution2D(48, 5, 5, subsample=(2, 2)))
     model.add(Activation('relu'))
 
-    model.add(Convolution2D(96, 3, 3))
+    model.add(Convolution2D(60, 3, 3))
     model.add(Activation('relu'))
 
-    model.add(Convolution2D(96, 3, 3))
+    model.add(Convolution2D(72, 3, 3))
     model.add(Activation('relu'))
     #model.add(MaxPooling2D(pool_size=(2, 2)))
 
     model.add(Flatten())
 
-    model.add(Dense(1000))
+    model.add(Dense(1200))
     model.add(Activation('relu'))
     #model.add(Dropout(0.5))
 
@@ -89,30 +91,48 @@ def get_model():
 
     return model
 
-
 def load_image(path):
-    return np.asarray(load_img(path)) / 255.0 - 0.5
+    return np.array(load_img(path, target_size=image_size)) / 255.0 - 0.5
+
+image_cache = dict()
+
+def generate(paths, angles):
+    global image_cache
+    while True:
+        pp = []
+        aa = []
+
+        def get_image(path):
+            if path not in image_cache:
+                image_cache[path] = load_image(path)
+            return image_cache[path]
+
+        def get_cache():
+            return np.asarray([get_image(p) for p in pp]), np.asarray(aa)
+
+        for (path, angle) in zip(paths, angles):
+            if len(pp) >= 1000:
+                yield get_cache()
+                pp = []
+                aa = []
+            pp.append(path)
+            aa.append(angle)
+
+        yield get_cache()
 
 
-def generate(images, angles):
-    pass #images
-
-
-from keras.preprocessing.image import ImageDataGenerator
-
-def train(model, images, angles):
-    #test_indices = sorted(range(len(all_angles)), key=lambda i: abs(all_angles[i]))[-20:-1]
-
-    (train_images, train_angles) = shuffle(images, angles)
+def train(model, paths, angles):
+    (train_paths, val_paths, train_angles, val_angles) = sklearn.model_selection.train_test_split(*sklearn.utils.shuffle(paths, angles))
 
     from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
-    early_stop = EarlyStopping(monitor='val_loss', patience=5)
-    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=3, min_lr=0.000001)
+    early_stop = EarlyStopping(monitor='val_loss', patience=3)
+    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=2, min_lr=0.000001)
     checkpoint = ModelCheckpoint("carnd-p3.{epoch:02d}-{val_loss:.2f}.h5", save_best_only=True)
-    model.fit(train_images, train_angles, nb_epoch=40,
-              callbacks=[reduce_lr, early_stop, checkpoint], validation_split=0.2
-              #, sample_weight=np.asarray([abs(a) * 3 + 0.3 for a in train_angles])
-              )
+    model.fit_generator(generate(train_paths, train_angles), samples_per_epoch=5000, nb_epoch=5,
+                        validation_data=generate(val_paths, val_angles), nb_val_samples=len(val_paths),
+                        #max_q_size=3,
+                        callbacks=[reduce_lr, early_stop, checkpoint]
+                        )
 
 
 def save(model):
@@ -127,6 +147,8 @@ def save(model):
 def take(values, indicies):
     return [values[i] for i in indicies]
 
+#from matplotlib import pyplot as plt
+
 def main():
     model = get_model()
 
@@ -138,24 +160,22 @@ def main():
     recording_folders = [f for f in glob.glob('../recording/*') if os.path.isdir(f)]
     (all_paths, all_angles) = load_csv(recording_folders)
 
-    train_indicies = [420, 421, 422, 423]
-    #train_indicies = range(len(all_paths))
-    (train_paths, train_angles) = (take(all_paths, train_indicies), take(all_angles, train_indicies))
+    #plt.figure()
+    #plt.imshow(load_image(all_paths[0]) + 0.5)
 
-    train_images = np.asarray([load_image(p) for p in train_paths])
-    train(model, train_images, train_angles)
+    train_indicies = range(len(all_paths))
+    train_paths, train_angles = take(all_paths, train_indicies), take(all_angles, train_indicies)
+
+    train(model, train_paths, train_angles)
     save(model)
 
     test_indices = sorted(range(len(all_angles)), key=lambda i: abs(all_angles[i]))[-20:-1]
     (test_paths, test_angles) = (take(all_paths, test_indices), take(all_angles, test_indices))
-    test_images = np.asarray([load_image(p) for p in test_paths])
 
-    test_prediction = model.predict_on_batch(test_images)
+    test_prediction = model.predict_generator(generate(test_paths, test_angles), len(test_paths))
     print("Test error: %s" % test_prediction)
 
-    for i in range(len(test_images)):
-        test = test_angles[i]
-        predicted = test_prediction[i]
+    for test, predicted in zip(test_angles, test_prediction):
         if test == 0 and predicted == 0:
             message = "Expected 0 and got 0"
         else:
@@ -164,9 +184,6 @@ def main():
 
         print(message)
 
-        #plt.figure()
-        #plt.title(message)
-        #plt.imshow(test_images[i] + 0.5)
 
 if __name__ == '__main__':
     main()
