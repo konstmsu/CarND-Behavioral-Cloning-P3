@@ -1,3 +1,7 @@
+*.h5
+carnd-p3.json
+*.png
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
