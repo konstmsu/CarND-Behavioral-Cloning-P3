@@ -19,10 +19,10 @@ def load_csv(folders):
     paths = []
     angles = []
 
-    total_images = 0
     for folder in sorted(f for f in folders if 'track1' in f):
         with open(os.path.join(folder, "driving_log.csv")) as csv_file:
-            row_counter = -1
+            row_counter = 0
+            accepted_samples = 0
             for row in csv.reader(csv_file):
                 if row[0] == 'center':
                     continue
@@ -33,61 +33,46 @@ def load_csv(folders):
 
                 if abs(angle) < 0.01 and row_counter % 10 < 8:
                     continue
-
+                
+                accepted_samples += 1
                 img_file_name = row[0].replace('\\', '/').split('/')[-1]
                 paths.append(os.path.join(folder, "IMG", img_file_name))
                 angles.append(angle)
 
-        total_images += row_counter + 1
-        print("%s images in '%s'" % (row_counter + 1, folder))
+        print("%s images in '%s'" % (accepted_samples, folder))
 
-    print("%s images in total" % total_images)
+    print("%s images in total" % len(paths))
 
-    return (paths, angles)
+    return (paths, angles) 
 
 
 def get_model():
     from keras.models import Sequential
+    from keras.optimizers import Adam
     from keras.layers.core import Dense, Activation, Flatten, Dropout, Lambda
     from keras.layers.convolutional import Convolution2D, MaxPooling2D
 
     model = Sequential()
 
-    model.add(Convolution2D(24, 5, 5, subsample=(2, 2), input_shape=(*image_size, 3)))
-    model.add(Activation('relu'))
-
-    model.add(Convolution2D(36, 5, 5, subsample=(2, 2)))
-    model.add(Activation('relu'))
-
-    model.add(Convolution2D(48, 5, 5, subsample=(2, 2)))
-    model.add(Activation('relu'))
-
-    model.add(Convolution2D(64, 3, 3))
-    model.add(Activation('relu'))
-
-    model.add(Convolution2D(64, 3, 3))
-    model.add(Activation('relu'))
+    model.add(Convolution2D(12, 5, 5, subsample=(2, 2), input_shape=(*image_size, 3), activation='relu'))
+    model.add(Convolution2D(16, 5, 5, subsample=(2, 2), activation='relu'))
+    model.add(Convolution2D(20, 5, 5, subsample=(2, 2), activation='relu'))
+    model.add(Convolution2D(20, 3, 3, subsample=(2, 2), activation='relu'))
+    model.add(Convolution2D(20, 3, 3, activation='relu'))
+    model.add(Convolution2D(24, 3, 3, activation='relu'))
 
     model.add(Flatten())
+    model.add(Dropout(0.25))
 
-    model.add(Dense(1164))
-    model.add(Activation('relu'))
-    #model.add(Dropout(0.5))
-
-    model.add(Dense(100))
-    model.add(Activation('relu'))
-    model.add(Dropout(0.5))
-
-    model.add(Dense(50))
-    model.add(Activation('relu'))
-    #model.add(Dropout(0.5))
-
-    model.add(Dense(10))
-    model.add(Activation('relu'))
-
+    model.add(Dense(200, activation='relu'))
+    model.add(Dense(100, activation='relu'))
+    model.add(Dense(50, activation='relu'))
+    model.add(Dense(20, activation='relu'))
     model.add(Dense(1))
 
-    model.compile(optimizer="adam", loss="mse")
+    print(model.summary())
+
+    model.compile(optimizer=Adam(lr=0.0001), loss="mse")
 
     return model
 
@@ -150,8 +135,8 @@ def train(model, paths, angles):
     train_images = (get_image(p) for p in train_paths)
     transformed = itertools.chain.from_iterable(transform(i, a) for (i, a) in itertools.cycle(zip(train_images, train_angles)))
     model.fit_generator(batch1(transformed),
-                        samples_per_epoch=300,
-                        nb_epoch=5,
+                        samples_per_epoch=2000,
+                        nb_epoch=10,
                         validation_data=batch(itertools.cycle(get_image(p) for p in val_paths), itertools.cycle(val_angles)),
                         nb_val_samples=len(val_angles),
                         callbacks=[checkpoint]
@@ -165,11 +150,11 @@ def take(values, indicies):
 def main():
     model = get_model()
 
-    try:        
+    try:
         from keras.utils.visualize_util import plot
         plot(model, show_shapes=True)
-    except ImportError as e:
-        print("Could not save model schema: %s" % e)
+    except ImportError as ex:
+        print("Could not save model schema: %s" % ex)
 
     print("Saving...")
 
@@ -179,28 +164,15 @@ def main():
     recording_folders = [f for f in glob.glob('../recording/*') if os.path.isdir(f)]
     (all_paths, all_angles) = load_csv(recording_folders)
 
-    #train_indicies = range(len(all_paths))
-    train_indicies = list(itertools.chain(range(20, 100), range(700, 720), range(820, 850)))
+    train_indicies = range(len(all_paths))
+    #train_indicies = list(itertools.chain(range(20, 100), range(700, 720), range(820, 850)))
+    #train_indicies = list(itertools.chain(range(363, 460)))
+
     train_paths, train_angles = take(all_paths, train_indicies), take(all_angles, train_indicies)
 
-    model.load_weights('carnd-p3.h5')
+    #model.load_weights('carnd-p3.h5')
     train(model, train_paths, train_angles)
     model.save_weights('carnd-p3.h5')
-
-    test_indices = sorted(range(len(all_angles)), key=lambda i: abs(all_angles[i]))[-198:-1]
-    (test_paths, test_angles) = (take(all_paths, test_indices), take(all_angles, test_indices))
-
-    test_prediction = model.predict(np.asarray([get_image(p) for p in test_paths]))
-    print("Test error: %s" % test_prediction)
-
-    for test, predicted in zip(test_angles, test_prediction):
-        if test == 0 and predicted == 0:
-            message = "Expected 0 and got 0"
-        else:
-            message = "Expected %.2f and predicted %.2f (difference %.2f%%)" % (
-                test, predicted, 100 * (test - predicted) / (abs(test) + 0.000001))
-
-        print(message)
 
 
 if __name__ == '__main__':
