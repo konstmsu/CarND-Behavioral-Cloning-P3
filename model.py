@@ -14,9 +14,9 @@ import cv2
 from matplotlib import pyplot as plt
 from random import random as rnd
 from PIL import Image
+ 
 
-
-image_size = (40, 80)
+image_size = (160, 320)
 
 
 def load_csv(folders):
@@ -61,13 +61,14 @@ def get_model():
 
     model = Sequential()
 
-    model.add(Convolution2D(7, 5, 7, subsample=(1, 2), input_shape=(*image_size, 3), activation='relu'))
-    model.add(Convolution2D(11, 5, 5, subsample=(2, 2), activation='relu'))
-    model.add(Dropout(0.2))
-    model.add(Convolution2D(13, 5, 5, subsample=(2, 2), activation='relu'))
-    model.add(Convolution2D(15, 3, 3, subsample=(1, 1), activation='relu'))
-    model.add(Dropout(0.2))
-    model.add(Convolution2D(17, 3, 3, activation='relu'))
+    model.add(Convolution2D(8, 5, 5, subsample=(2, 2), input_shape=(*image_size, 3), activation='relu'))
+    model.add(Convolution2D(16, 5, 5, subsample=(2, 2), activation='relu'))
+    model.add(Convolution2D(20, 5, 5, activation='relu'))
+    model.add(Convolution2D(24, 5, 5, activation='relu'))
+    model.add(Convolution2D(32, 5, 5, activation='relu'))
+    model.add(Convolution2D(48, 5, 5, activation='relu'))
+    model.add(Convolution2D(64, 5, 5, activation='relu'))
+    model.add(Convolution2D(64, 5, 5, activation='relu'))
 
     model.add(Flatten())
     model.add(Dropout(0.2))
@@ -157,8 +158,7 @@ def train(model, paths, angles):
 
 
 def main():
-    img = get_image(r'..\recording\track1_round1\IMG\center_2017_01_28_04_00_11_255.jpg')
-    
+    #img = get_image(r'..\recording\track1_round1\IMG\center_2017_01_28_04_00_11_255.jpg')
     
     model = get_model()
 
@@ -175,7 +175,10 @@ def main():
     recording_folders = [f for f in glob.glob('../recording/*') if os.path.isdir(f)]
     (all_paths, all_angles) = load_csv(recording_folders)
 
-    plt.hist(all_angles, 100)
+    try:
+        plt.hist(all_angles, 100)
+    except Exception as ex:
+        print("Could not show histogram: %s" % ex)
 
     try:
         model.load_weights('carnd-p3.h5')
