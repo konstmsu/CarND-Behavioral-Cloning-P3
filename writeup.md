@@ -46,7 +46,7 @@ The model.py file contains the code for training and saving the convolution neur
 
 #### 1. An appropriate model arcthiecture has been employed
 
-Main features that help deciding steering angle is road side. Input image size are 320x160
+Input image size is 320x160. Main features that help deciding steering angle is road side, they are usually located at the bottom part of the screen and have length about 100 pixels
 
 My model consists of a convolution neural network with 3x3 filter sizes and depths between 32 and 128 (model.py lines 18-24) 
 
