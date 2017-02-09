@@ -10,16 +10,20 @@ import numpy as np
 import tensorflow as tf
 import keras
 from keras.preprocessing.image import load_img, img_to_array
+import cv2
+from matplotlib import pyplot as plt
+from random import random as rnd
+from PIL import Image
 
 
-image_size = (160, 320)
+image_size = (40, 80)
 
 
 def load_csv(folders):
     paths = []
     angles = []
 
-    for folder in sorted(f for f in folders if 'track1' in f):
+    for folder in sorted(f for f in folders):
         with open(os.path.join(folder, "driving_log.csv")) as csv_file:
             row_counter = 0
             accepted_samples = 0
@@ -31,7 +35,10 @@ def load_csv(folders):
 
                 angle = float(row[3])
 
-                if abs(angle) < 0.01 and row_counter % 10 < 8:
+                if abs(angle) < 0.01 and rnd() < 0.99:
+                    continue
+                
+                if abs(angle) > 0.99 and rnd() < 0.7:
                     continue
                 
                 accepted_samples += 1
@@ -54,20 +61,19 @@ def get_model():
 
     model = Sequential()
 
-    model.add(Convolution2D(12, 5, 5, subsample=(2, 2), input_shape=(*image_size, 3), activation='relu'))
-    model.add(Convolution2D(16, 5, 5, subsample=(2, 2), activation='relu'))
-    model.add(Convolution2D(20, 5, 5, subsample=(2, 2), activation='relu'))
-    model.add(Convolution2D(20, 3, 3, subsample=(2, 2), activation='relu'))
-    model.add(Convolution2D(20, 3, 3, activation='relu'))
-    model.add(Convolution2D(24, 3, 3, activation='relu'))
+    model.add(Convolution2D(7, 5, 7, subsample=(1, 2), input_shape=(*image_size, 3), activation='relu'))
+    model.add(Convolution2D(11, 5, 5, subsample=(2, 2), activation='relu'))
+    model.add(Dropout(0.2))
+    model.add(Convolution2D(13, 5, 5, subsample=(2, 2), activation='relu'))
+    model.add(Convolution2D(15, 3, 3, subsample=(1, 1), activation='relu'))
+    model.add(Dropout(0.2))
+    model.add(Convolution2D(17, 3, 3, activation='relu'))
 
     model.add(Flatten())
-    model.add(Dropout(0.25))
+    model.add(Dropout(0.2))
 
-    model.add(Dense(200, activation='relu'))
     model.add(Dense(100, activation='relu'))
-    model.add(Dense(50, activation='relu'))
-    model.add(Dense(20, activation='relu'))
+    model.add(Dense(10, activation='relu'))
     model.add(Dense(1))
 
     print(model.summary())
@@ -76,16 +82,27 @@ def get_model():
 
     return model
 
-def load_image(path):
-    return np.array(load_img(path, target_size=image_size)) / 255.0 - 0.5
+
+def show_image(img):
+    plt.figure()
+    plt.imshow(img)
+
+
+def normalize_image(img):
+    img = img.resize((image_size[1], image_size[0]), Image.ANTIALIAS)
+    img = np.array(img)
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+    return img / 255.0 - 0.5
+
 
 image_cache = {}
+
 
 def get_image(path):
     global image_cache
 
     if path not in image_cache:
-        image_cache[path] = load_image(path)
+        image_cache[path] = normalize_image(load_img(path))
         
     return image_cache[path]
 
@@ -116,6 +133,7 @@ def batch1(images_and_angles):
 
 def transform(image, angle):
     yield image, angle
+    yield np.fliplr(image), -angle
 
 
 def train(model, paths, angles):
@@ -129,25 +147,19 @@ def train(model, paths, angles):
     #    print("Not going to save mode png: %s" % e)
 
     from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
-    early_stop = EarlyStopping(monitor='val_loss', patience=3)
-    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=2, min_lr=0.000001)
-    checkpoint = ModelCheckpoint("carnd-p3.{epoch:02d}-{val_loss:.2f}.h5", save_best_only=True)
     train_images = (get_image(p) for p in train_paths)
     transformed = itertools.chain.from_iterable(transform(i, a) for (i, a) in itertools.cycle(zip(train_images, train_angles)))
     model.fit_generator(batch1(transformed),
                         samples_per_epoch=2000,
                         nb_epoch=10,
                         validation_data=batch(itertools.cycle(get_image(p) for p in val_paths), itertools.cycle(val_angles)),
-                        nb_val_samples=len(val_angles),
-                        callbacks=[checkpoint]
-                       )
-
-
-def take(values, indicies):
-    return [values[i] for i in indicies]
+                        nb_val_samples=len(val_angles))
 
 
 def main():
+    img = get_image(r'..\recording\track1_round1\IMG\center_2017_01_28_04_00_11_255.jpg')
+    
+    
     model = get_model()
 
     try:
@@ -156,22 +168,22 @@ def main():
     except ImportError as ex:
         print("Could not save model schema: %s" % ex)
 
-    print("Saving...")
-
+    print("Saving model...")
     with open('carnd-p3.json', 'w') as model_file:
         model_file.write(model.to_json())
 
     recording_folders = [f for f in glob.glob('../recording/*') if os.path.isdir(f)]
     (all_paths, all_angles) = load_csv(recording_folders)
 
-    train_indicies = range(len(all_paths))
-    #train_indicies = list(itertools.chain(range(20, 100), range(700, 720), range(820, 850)))
-    #train_indicies = list(itertools.chain(range(363, 460)))
+    plt.hist(all_angles, 100)
 
-    train_paths, train_angles = take(all_paths, train_indicies), take(all_angles, train_indicies)
+    try:
+        model.load_weights('carnd-p3.h5')
+        print("Loaded weights")
+    except:
+        print("Failed to load weights, training from scratch")
 
-    #model.load_weights('carnd-p3.h5')
-    train(model, train_paths, train_angles)
+    train(model, all_paths, all_angles)
     model.save_weights('carnd-p3.h5')
 
 
