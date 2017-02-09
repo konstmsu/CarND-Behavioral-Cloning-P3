@@ -10,6 +10,10 @@ The goals / steps of this project are the following:
 
 [//]: # (Image References)
 
+[border_feature]: ./examples/center_2017_01_28_03_59_58_715.jpg "Road borders"
+[bridge]: ./examples/center_2017_01_28_04_00_54_674.jpg
+[countryside]: ./examples/center_2017_01_28_04_01_07_383.jpg
+[shadow]: ./examples/center_2017_02_01_01_01_12_441.jpg
 [image1]: ./examples/placeholder.png "Model Visualization"
 [image2]: ./examples/placeholder.png "Grayscaling"
 [image3]: ./examples/placeholder_small.png "Recovery Image"
@@ -46,7 +50,14 @@ The model.py file contains the code for training and saving the convolution neur
 
 #### 1. An appropriate model arcthiecture has been employed
 
-Input image size is 320x160. Main features that help deciding steering angle is road side, they are usually located at the bottom part of the screen and have length about 100 pixels
+Input image size is 320x160. Main features that help deciding steering angle is road side, they are usually located at the bottom part of the screen and have maximum dimension of about 50-100 pixels:
+
+![border_feature]
+![bridge]
+![countryside]
+![shadow]
+
+To decrease the number of parameters, first 3 convolution layers have 5x5 kernels and use 2x2 stripes making border features ~8 times smaller. Further convolutions don't need to include more than: 7-12 pixels which can get covered by 3 additional convolution layers with 5x5 kernels. Result turning angle should be a superposition of left and right borders so final convolution layer can have 5 layers (steep left, mild left, straight, mild right, steep right)
 
 My model consists of a convolution neural network with 3x3 filter sizes and depths between 32 and 128 (model.py lines 18-24) 
 
