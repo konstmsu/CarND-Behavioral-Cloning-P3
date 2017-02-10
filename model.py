@@ -53,18 +53,19 @@ def get_model():
 
     model = Sequential()
 
-    model.add(Convolution2D(5, 5, 5, subsample=(2, 2), activation='relu', input_shape=(*image_size, 3)))
+    model.add(Convolution2D(7, 5, 5, subsample=(1, 2), activation='relu', input_shape=(*image_size, 3)))
     model.add(Dropout(0.1))
-    model.add(Convolution2D(6, 5, 5, subsample=(2, 2), activation='relu'))
+    model.add(Convolution2D(9, 5, 5, subsample=(2, 2), activation='relu'))
     model.add(Dropout(0.1))
-    model.add(Convolution2D(7, 5, 5, subsample=(2, 2), activation='relu'))
+    model.add(Convolution2D(11, 5, 5, subsample=(2, 2), activation='relu'))
     model.add(Dropout(0.1))
-    model.add(Convolution2D(7, 5, 5, subsample=(1, 1), activation='relu'))
+    model.add(Convolution2D(13, 5, 5, subsample=(2, 2), activation='relu'))
     model.add(Dropout(0.1))
-    model.add(Convolution2D(12, 3, 3, subsample=(1, 1), activation='relu'))
+    model.add(Convolution2D(15, 3, 3, subsample=(1, 1), activation='relu'))
 
     model.add(Flatten()) 
     model.add(Dropout(0.1))
+    model.add(Dense(10, activation='relu'))
     model.add(Dense(5, activation='relu'))
     model.add(Dense(1))
 
