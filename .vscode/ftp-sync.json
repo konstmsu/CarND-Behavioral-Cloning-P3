@@ -6,7 +6,7 @@
     "port": 22,
     "secure": true,
     "protocol": "sftp",
-    "uploadOnSave": false,
+    "uploadOnSave": true,
     "passive": false,
     "debug": false,
     "privateKeyPath": "C:/Users/kaspir/Desktop/carnd_rsa_private.ppk",

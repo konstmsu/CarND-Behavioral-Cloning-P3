@@ -30,12 +30,9 @@ def load_csv(folders):
 
                 angle = float(row[3])
 
-                if abs(angle) < 0.01 and rnd() < 0.98:
+                if abs(angle) < 0.01 and rnd() < 0.97:
                     continue
-                
-                #if abs(angle) > 0.99 and rnd() < 0.5:
-                #    continue
-                
+
                 accepted_samples += 1
                 img_file_name = row[0].replace('\\', '/').split('/')[-1]
                 paths.append(os.path.join(folder, "IMG", img_file_name))
@@ -56,16 +53,19 @@ def get_model():
 
     model = Sequential()
 
-    model.add(Convolution2D(3, 5, 5, subsample=(2, 2), activation='relu', input_shape=(*image_size, 3)))
-    model.add(Convolution2D(4, 5, 5, subsample=(2, 2), activation='relu'))
-    model.add(Convolution2D(5, 5, 5, subsample=(2, 2), activation='relu'))
-    model.add(Convolution2D(6, 5, 5, subsample=(1, 1), activation='relu'))
-    model.add(Convolution2D(6, 3, 3, subsample=(1, 1), activation='relu'))
+    model.add(Convolution2D(5, 5, 5, subsample=(2, 2), activation='relu', input_shape=(*image_size, 3)))
+    model.add(Dropout(0.1))
+    model.add(Convolution2D(6, 5, 5, subsample=(2, 2), activation='relu'))
+    model.add(Dropout(0.1))
+    model.add(Convolution2D(7, 5, 5, subsample=(2, 2), activation='relu'))
+    model.add(Dropout(0.1))
+    model.add(Convolution2D(7, 5, 5, subsample=(1, 1), activation='relu'))
+    model.add(Dropout(0.1))
+    model.add(Convolution2D(12, 3, 3, subsample=(1, 1), activation='relu'))
 
     model.add(Flatten()) 
-    model.add(Dropout(0.3))
-
-    model.add(Dense(20, activation='relu'))
+    model.add(Dropout(0.1))
+    model.add(Dense(5, activation='relu'))
     model.add(Dense(1))
 
     print(model.summary())
@@ -111,14 +111,14 @@ def batch(images_and_angles, batch_size):
             angles = []
 
 
-def transform(image, angle):
+def transform(image, angle): 
     yield image, angle
     yield np.fliplr(image), -angle
-    #if abs(angle) < 0.6:
-    #    offset = image.shape[1] // 5
-    #    correction = 0.1
-    #    yield shift_right(image, offset), angle - correction
-    #    yield shift_right(image, -offset), angle + correction
+    if abs(angle) < 0.4 and rnd() < 0.3:
+        offset = image.shape[1] // 5
+        correction = 0.15
+        yield shift_right(image, offset), angle - correction
+        yield shift_right(image, -offset), angle + correction
 
 
 def shift_right(img, offset):
@@ -135,9 +135,9 @@ def train(model, paths, angles):
     train_images = (get_image(p) for p in train_paths)
     transformed = (t for ia in zip(train_images, train_angles) for t in transform(*ia))
     validation = zip((get_image(p) for p in val_paths), val_angles)
-    model.fit_generator(batch(transformed, 50),
+    model.fit_generator(batch(transformed, 25),
                         samples_per_epoch=10000,
-                        nb_epoch=10,
+                        nb_epoch=20,
                         validation_data=batch(validation, batch_size=300),
                         nb_val_samples=len(val_angles))
 
