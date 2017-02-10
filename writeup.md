@@ -59,9 +59,39 @@ Input image size is 320x160. Main features that help deciding steering angle is 
 
 To decrease the number of parameters, first 3 convolution layers have 5x5 kernels and use 2x2 stripes making border features ~8 times smaller. Further convolutions don't need to include more than: 7-12 pixels which can get covered by 3 additional convolution layers with 5x5 kernels. Result turning angle should be a superposition of left and right borders so final convolution layer can have 5 layers (steep left, mild left, straight, mild right, steep right)
 
-My model consists of a convolution neural network with 3x3 filter sizes and depths between 32 and 128 (model.py lines 18-24) 
-
 The model includes RELU layers to introduce nonlinearity (code line 20), and the data is normalized in the model using a Keras lambda layer (code line 18). 
+
+
+```
+____________________________________________________________________________________________________
+Layer (type)                     Output Shape          Param #     Connected to
+====================================================================================================
+convolution2d_1 (Convolution2D)  (None, 78, 158, 20)   1520        convolution2d_input_1[0][0]
+____________________________________________________________________________________________________
+convolution2d_2 (Convolution2D)  (None, 37, 77, 30)    15030       convolution2d_1[0][0]
+____________________________________________________________________________________________________
+convolution2d_3 (Convolution2D)  (None, 17, 37, 40)    30040       convolution2d_2[0][0]
+____________________________________________________________________________________________________
+convolution2d_4 (Convolution2D)  (None, 13, 33, 30)    30030       convolution2d_3[0][0]
+____________________________________________________________________________________________________
+convolution2d_5 (Convolution2D)  (None, 9, 29, 15)     11265       convolution2d_4[0][0]
+____________________________________________________________________________________________________
+convolution2d_6 (Convolution2D)  (None, 5, 25, 5)      1880        convolution2d_5[0][0]
+____________________________________________________________________________________________________
+flatten_1 (Flatten)              (None, 625)           0           convolution2d_6[0][0]
+____________________________________________________________________________________________________
+dropout_1 (Dropout)              (None, 625)           0           flatten_1[0][0]
+____________________________________________________________________________________________________
+dense_1 (Dense)                  (None, 100)           62600       dropout_1[0][0]
+____________________________________________________________________________________________________
+dense_2 (Dense)                  (None, 10)            1010        dense_1[0][0]
+____________________________________________________________________________________________________
+dense_3 (Dense)                  (None, 1)             11          dense_2[0][0]
+====================================================================================================
+Total params: 153,386
+Trainable params: 153,386
+Non-trainable params: 0
+```
 
 #### 2. Attempts to reduce overfitting in the model
 

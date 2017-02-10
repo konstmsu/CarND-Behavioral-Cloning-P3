@@ -2,24 +2,19 @@
 """CarND project 3"""
 
 import os
-import csv
-import glob
 import itertools
-import sklearn.model_selection
+from PIL import Image
 import numpy as np
-import tensorflow as tf
-import keras
-from keras.preprocessing.image import load_img, img_to_array
 import cv2
 from matplotlib import pyplot as plt
 from random import random as rnd
-from PIL import Image
- 
 
-image_size = (160, 320)
+
+image_size = (80, 160)
 
 
 def load_csv(folders):
+    import csv
     paths = []
     angles = []
 
@@ -35,11 +30,11 @@ def load_csv(folders):
 
                 angle = float(row[3])
 
-                if abs(angle) < 0.01 and rnd() < 0.99:
+                if abs(angle) < 0.01 and rnd() < 0.98:
                     continue
                 
-                if abs(angle) > 0.99 and rnd() < 0.7:
-                    continue
+                #if abs(angle) > 0.99 and rnd() < 0.5:
+                #    continue
                 
                 accepted_samples += 1
                 img_file_name = row[0].replace('\\', '/').split('/')[-1]
@@ -61,20 +56,16 @@ def get_model():
 
     model = Sequential()
 
-    model.add(Convolution2D(8, 5, 5, subsample=(2, 2), input_shape=(*image_size, 3), activation='relu'))
-    model.add(Convolution2D(16, 5, 5, subsample=(2, 2), activation='relu'))
-    model.add(Convolution2D(20, 5, 5, activation='relu'))
-    model.add(Convolution2D(24, 5, 5, activation='relu'))
-    model.add(Convolution2D(32, 5, 5, activation='relu'))
-    model.add(Convolution2D(48, 5, 5, activation='relu'))
-    model.add(Convolution2D(64, 5, 5, activation='relu'))
-    model.add(Convolution2D(64, 5, 5, activation='relu'))
+    model.add(Convolution2D(3, 5, 5, subsample=(2, 2), activation='relu', input_shape=(*image_size, 3)))
+    model.add(Convolution2D(4, 5, 5, subsample=(2, 2), activation='relu'))
+    model.add(Convolution2D(5, 5, 5, subsample=(2, 2), activation='relu'))
+    model.add(Convolution2D(6, 5, 5, subsample=(1, 1), activation='relu'))
+    model.add(Convolution2D(6, 3, 3, subsample=(1, 1), activation='relu'))
 
-    model.add(Flatten())
-    model.add(Dropout(0.2))
+    model.add(Flatten()) 
+    model.add(Dropout(0.3))
 
-    model.add(Dense(100, activation='relu'))
-    model.add(Dense(10, activation='relu'))
+    model.add(Dense(20, activation='relu'))
     model.add(Dense(1))
 
     print(model.summary())
@@ -86,80 +77,78 @@ def get_model():
 
 def show_image(img):
     plt.figure()
-    plt.imshow(img)
+    plt.imshow(cv2.cvtColor(np.uint8((img + 0.5) * 255.0), cv2.COLOR_HSV2RGB), interpolation='none')
 
 
 def normalize_image(img):
-    img = img.resize((image_size[1], image_size[0]), Image.ANTIALIAS)
+    img = img.resize((image_size[1], image_size[0]), Image.BICUBIC)
     img = np.array(img)
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
     return img / 255.0 - 0.5
 
 
-image_cache = {}
+IMAGE_CACHE = {}
 
 
 def get_image(path):
-    global image_cache
+    global IMAGE_CACHE
 
-    if path not in image_cache:
-        image_cache[path] = normalize_image(load_img(path))
-        
-    return image_cache[path]
+    if path not in IMAGE_CACHE:
+        IMAGE_CACHE[path] = normalize_image(Image.open(path))
 
-
-def batch(images, angles):
-    image_batch = []
-    angle_batch = []
-    for (image, angle) in zip(images, angles):
-        image_batch.append(image)
-        angle_batch.append(angle)
-        if len(image_batch) == 50:
-            yield np.asarray(image_batch), np.asarray(angle_batch)
-            image_batch = []
-            angle_batch = []
+    return IMAGE_CACHE[path]
 
 
-def batch1(images_and_angles):
-    image_batch = []
-    angle_batch = []
-    for (image, angle) in images_and_angles:
-        image_batch.append(image)
-        angle_batch.append(angle)
-        if len(image_batch) == 50:
-            yield np.asarray(image_batch), np.asarray(angle_batch)
-            image_batch = []
-            angle_batch = []
+def batch(images_and_angles, batch_size):
+    images = []
+    angles = []
+    for image, angle in itertools.cycle(images_and_angles):
+        images.append(image)
+        angles.append(angle)
+        if len(images) >= batch_size:
+            yield np.asarray(images), np.asarray(angles)
+            images = []
+            angles = []
 
 
 def transform(image, angle):
     yield image, angle
     yield np.fliplr(image), -angle
+    #if abs(angle) < 0.6:
+    #    offset = image.shape[1] // 5
+    #    correction = 0.1
+    #    yield shift_right(image, offset), angle - correction
+    #    yield shift_right(image, -offset), angle + correction
+
+
+def shift_right(img, offset):
+    if offset > 0:
+        return np.lib.pad(img, ((0, 0), (offset, 0), (0, 0)), 'constant')[:, :-offset]
+    else:
+        return np.lib.pad(img, ((0, 0), (0, -offset), (0, 0)), 'constant')[:, -offset:]
 
 
 def train(model, paths, angles):
+    import sklearn.model_selection
     (train_paths, val_paths, train_angles, val_angles) = sklearn.model_selection.train_test_split(*sklearn.utils.shuffle(paths, angles))
 
-    #try:
-    #    from matplotlib import pyplot as plt
-    #    plt.figure()
-    #    plt.imshow(load_image(train_paths[0]) + 0.5)
-    #except ImportError as e:
-    #    print("Not going to save mode png: %s" % e)
-
-    from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
     train_images = (get_image(p) for p in train_paths)
-    transformed = itertools.chain.from_iterable(transform(i, a) for (i, a) in itertools.cycle(zip(train_images, train_angles)))
-    model.fit_generator(batch1(transformed),
-                        samples_per_epoch=2000,
+    transformed = (t for ia in zip(train_images, train_angles) for t in transform(*ia))
+    validation = zip((get_image(p) for p in val_paths), val_angles)
+    model.fit_generator(batch(transformed, 50),
+                        samples_per_epoch=10000,
                         nb_epoch=10,
-                        validation_data=batch(itertools.cycle(get_image(p) for p in val_paths), itertools.cycle(val_angles)),
+                        validation_data=batch(validation, batch_size=300),
                         nb_val_samples=len(val_angles))
 
 
 def main():
-    #img = get_image(r'..\recording\track1_round1\IMG\center_2017_01_28_04_00_11_255.jpg')
-    
+    #img = get_image(r"C:\projects\CarND\Project3\recording\track1_round1\IMG\center_2017_01_28_03_59_58_715.jpg")
+    #show_image(shift_right(img, 30))
+    #show_image(shift_right(img, -30))
+    #return
+    import keras.utils
+
     model = get_model()
 
     try:
@@ -172,6 +161,7 @@ def main():
     with open('carnd-p3.json', 'w') as model_file:
         model_file.write(model.to_json())
 
+    import glob
     recording_folders = [f for f in glob.glob('../recording/*') if os.path.isdir(f)]
     (all_paths, all_angles) = load_csv(recording_folders)
 
