@@ -10,17 +10,10 @@ The goals / steps of this project are the following:
 
 [//]: # (Image References)
 
-[border_feature]: ./examples/center_2017_01_28_03_59_58_715.jpg "Road borders"
+[border_feature]: ./examples/center_2017_01_28_03_59_58_715.jpg
 [bridge]: ./examples/center_2017_01_28_04_00_54_674.jpg
 [countryside]: ./examples/center_2017_01_28_04_01_07_383.jpg
 [shadow]: ./examples/center_2017_02_01_01_01_12_441.jpg
-[image1]: ./examples/placeholder.png "Model Visualization"
-[image2]: ./examples/placeholder.png "Grayscaling"
-[image3]: ./examples/placeholder_small.png "Recovery Image"
-[image4]: ./examples/placeholder_small.png "Recovery Image"
-[image5]: ./examples/placeholder_small.png "Recovery Image"
-[image6]: ./examples/placeholder_small.png "Normal Image"
-[image7]: ./examples/placeholder_small.png "Flipped Image"
 
 ## Rubric Points
 ### Here I will consider the [rubric points](https://review.udacity.com/#!/rubrics/432/view) individually and describe how I addressed each point in my implementation.  
@@ -39,7 +32,7 @@ My project includes the following files:
 #### 2. Submssion includes functional code
 Using the Udacity provided simulator and my drive.py file, the car can be driven autonomously around the track by executing 
 ```sh
-python drive.py model.h5
+python drive.py carnd-p3.json
 ```
 
 #### 3. Submssion code is usable and readable
@@ -61,41 +54,45 @@ I've decided not to crop input images and instead just train the network more to
 
 To decrease the number of parameters, first 3 convolution layers have 5x5 kernels and use 2x2 stripes making border features ~8 times smaller. Further convolutions don't need to include more than: 7-12 pixels which can get covered by 3 additional convolution layers with 5x5 kernels. Result turning angle should be a superposition of left and right borders so final convolution layer can have 5 layers (steep left, mild left, straight, mild right, steep right)
 
-The model includes RELU layers to introduce nonlinearity (code line 20), and the data is normalized in the model using a Keras lambda layer (code line 18). 
+The model includes RELU layers to introduce nonlinearity.
+
+Images are converted to HSV and normalized prior to entering the network to save processing power when training.
 
 
 ```
 ____________________________________________________________________________________________________
 Layer (type)                     Output Shape          Param #     Connected to
 ====================================================================================================
-convolution2d_1 (Convolution2D)  (None, 38, 78, 5)     380         convolution2d_input_1[0][0]
+convolution2d_1 (Convolution2D)  (None, 76, 78, 7)     532         convolution2d_input_1[0][0]
 ____________________________________________________________________________________________________
-convolution2d_2 (Convolution2D)  (None, 17, 37, 6)     756         convolution2d_1[0][0]
+dropout_1 (Dropout)              (None, 76, 78, 7)     0           convolution2d_1[0][0]
 ____________________________________________________________________________________________________
-dropout_1 (Dropout)              (None, 17, 37, 6)     0           convolution2d_2[0][0]
+convolution2d_2 (Convolution2D)  (None, 36, 37, 9)     1584        dropout_1[0][0]
 ____________________________________________________________________________________________________
-convolution2d_3 (Convolution2D)  (None, 7, 17, 7)      1057        dropout_1[0][0]
+dropout_2 (Dropout)              (None, 36, 37, 9)     0           convolution2d_2[0][0]
 ____________________________________________________________________________________________________
-dropout_2 (Dropout)              (None, 7, 17, 7)      0           convolution2d_3[0][0]
+convolution2d_3 (Convolution2D)  (None, 16, 17, 11)    2486        dropout_2[0][0]
 ____________________________________________________________________________________________________
-convolution2d_4 (Convolution2D)  (None, 3, 13, 8)      1408        dropout_2[0][0]
+dropout_3 (Dropout)              (None, 16, 17, 11)    0           convolution2d_3[0][0]
 ____________________________________________________________________________________________________
-dropout_3 (Dropout)              (None, 3, 13, 8)      0           convolution2d_4[0][0]
+convolution2d_4 (Convolution2D)  (None, 6, 7, 13)      3588        dropout_3[0][0]
 ____________________________________________________________________________________________________
-convolution2d_5 (Convolution2D)  (None, 1, 11, 16)     1168        dropout_3[0][0]
+dropout_4 (Dropout)              (None, 6, 7, 13)      0           convolution2d_4[0][0]
 ____________________________________________________________________________________________________
-flatten_1 (Flatten)              (None, 176)           0           convolution2d_5[0][0]
+convolution2d_5 (Convolution2D)  (None, 4, 5, 15)      1770        dropout_4[0][0]
 ____________________________________________________________________________________________________
-dropout_4 (Dropout)              (None, 176)           0           flatten_1[0][0]
+flatten_1 (Flatten)              (None, 300)           0           convolution2d_5[0][0]
 ____________________________________________________________________________________________________
-dense_1 (Dense)                  (None, 10)            1770        dropout_4[0][0]
+dropout_5 (Dropout)              (None, 300)           0           flatten_1[0][0]
+____________________________________________________________________________________________________
+dense_1 (Dense)                  (None, 10)            3010        dropout_5[0][0]
 ____________________________________________________________________________________________________
 dense_2 (Dense)                  (None, 5)             55          dense_1[0][0]
 ____________________________________________________________________________________________________
 dense_3 (Dense)                  (None, 1)             6           dense_2[0][0]
 ====================================================================================================
-Total params: 6,600
-Trainable params: 6,600
+Total params: 13,031
+Trainable params: 13,031
 Non-trainable params: 0
 ```
 
@@ -168,3 +165,45 @@ After the collection process, I had X number of data points. I then preprocessed
 I finally randomly shuffled the data set and put Y% of the data into a validation set. 
 
 I used this training data for training the model. The validation set helped determine if the model was over or under fitting. The ideal number of epochs was Z as evidenced by ... I used an adam optimizer so that manually training the learning rate wasn't necessary.
+
+```
+10000/10000 [==============================] - 19s - loss: 0.1143 - val_loss: 0.1079
+Epoch 2/20
+10000/10000 [==============================] - 8s - loss: 0.0921 - val_loss: 0.0785
+Epoch 3/20
+10000/10000 [==============================] - 6s - loss: 0.0775 - val_loss: 0.0656
+Epoch 4/20
+10000/10000 [==============================] - 6s - loss: 0.0706 - val_loss: 0.0634
+Epoch 5/20
+10000/10000 [==============================] - 6s - loss: 0.0644 - val_loss: 0.0565
+Epoch 6/20
+10000/10000 [==============================] - 5s - loss: 0.0613 - val_loss: 0.0535
+Epoch 7/20
+10000/10000 [==============================] - 5s - loss: 0.0564 - val_loss: 0.0505
+Epoch 8/20
+10000/10000 [==============================] - 5s - loss: 0.0557 - val_loss: 0.0501
+Epoch 9/20
+10000/10000 [==============================] - 5s - loss: 0.0504 - val_loss: 0.0482
+Epoch 10/20
+10000/10000 [==============================] - 5s - loss: 0.0502 - val_loss: 0.0459
+Epoch 11/20
+10000/10000 [==============================] - 6s - loss: 0.0487 - val_loss: 0.0455
+Epoch 12/20
+10000/10000 [==============================] - 5s - loss: 0.0461 - val_loss: 0.0441
+Epoch 13/20
+10000/10000 [==============================] - 5s - loss: 0.0460 - val_loss: 0.0421
+Epoch 14/20
+10000/10000 [==============================] - 5s - loss: 0.0441 - val_loss: 0.0436
+Epoch 15/20
+10000/10000 [==============================] - 5s - loss: 0.0441 - val_loss: 0.0430
+Epoch 16/20
+10000/10000 [==============================] - 6s - loss: 0.0427 - val_loss: 0.0416
+Epoch 17/20
+10000/10000 [==============================] - 5s - loss: 0.0409 - val_loss: 0.0413
+Epoch 18/20
+10000/10000 [==============================] - 6s - loss: 0.0411 - val_loss: 0.0414
+Epoch 19/20
+10000/10000 [==============================] - 6s - loss: 0.0408 - val_loss: 0.0428
+Epoch 20/20
+10000/10000 [==============================] - 5s - loss: 0.0404 - val_loss: 0.0380
+```
