@@ -37,10 +37,10 @@ def load_csv(folders):
         interesting_angles = []
 
         look_back = 2
-        look_forward = 5 
+        look_forward = 5
         for i in range(look_back, len(paths) - look_back - look_forward):
             # Poor man's rolling window sum
-            if sum(map(abs, angles[i - look_back : i + look_forward])) > 0.1:
+            if sum(map(abs, angles[i - look_back : i + look_forward])) > 0.2:
                 interesting_paths.append(paths[i])
                 interesting_angles.append(angles[i])
 
@@ -134,11 +134,11 @@ def transform(image, angle):
     yield image, angle
     yield np.fliplr(image), -angle
 
-    if abs(angle) < 0.3 and rnd() > 0.7:
-        offset = image.shape[1] // 5
-        correction = 0.2
-        yield shift_right(image, offset), angle - correction
-        yield shift_right(image, -offset), angle + correction
+    #if abs(angle) < 0.3 and rnd() > 0.7:
+    #    offset = image.shape[1] // 5
+    #    correction = 0.2
+    #    yield shift_right(image, offset), angle - correction
+    #    yield shift_right(image, -offset), angle + correction
 
 
 """Shifts image right by offset (left if `offset` is negative)"""
