@@ -132,6 +132,7 @@ def batch(images_and_angles, batch_size):
 """Returns image itself and its transformations"""
 def transform(image, angle): 
     yield image, angle
+    # Mirror reflection
     yield np.fliplr(image), -angle
 
     #if abs(angle) < 0.3 and rnd() > 0.7:
