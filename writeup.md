@@ -15,6 +15,7 @@ The goals / steps of this project are the following:
 [countryside]: ./examples/center_2017_01_28_04_01_07_383.jpg
 [shadow]: ./examples/center_2017_02_01_01_01_12_441.jpg
 [model]: ./model.png
+[original_filtered_histogram]: ./examples/original_filtered_histogram.png
 
 ## Rubric Points
 ### Here I will consider the [rubric points](https://review.udacity.com/#!/rubrics/432/view) individually and describe how I addressed each point in my implementation.  
@@ -51,11 +52,11 @@ Input image size is 320x160. Main features that help deciding steering angle is 
 ![countryside]
 ![shadow]
 
-I've decided not to crop input images and instead just train the network more to ignore irrelevant features.
+I've decided _not_ to crop input images and instead just train the network more to ignore irrelevant features.
 
 To decrease the number of parameters, first 3 convolution layers have 5x5 kernels and use 2x2 stripes making border features ~8 times smaller. Further convolutions don't need to include more than 7-12 pixels which can get covered by 3 additional convolution layers with 3x3 kernels. The model includes RELU layers to introduce nonlinearity.
 
-Images are converted to HSV, resized to 160x80 and normalized prior to entering the network to save processing power when training.
+Input images are converted to HSV, resized to 160x80 and normalized prior to entering the network to save processing power when training.
 
 ```
 ____________________________________________________________________________________________________
@@ -128,7 +129,10 @@ The overall strategy for deriving a model architecture was to use as many convol
 
 I only used center image because I went for the Dominique simulator after reading that training from a mouse-controller car is much easier.
 
-I've tried adding recovery suggestions by shifting input image and augmenting steering angle. I also tried throwing away 98% of training data where steering angle is zero. Results were mixed.
+I've tried adding recovery suggestions by shifting input image and augmenting steering angle. I also tried throwing away 98% of training data where steering angle is zero. Results were mixed. There are quite a nuber of full-left-turns which might have caused the model to drive off the road every time.
+
+
+![original_filtered_histogram]
 
 First 10 days I struggled with large networks with millions of parameters. They overfit easily while val_loss sometimes remained quite high and they kept failing in driving test. Training was taking long time and they didn't work well. Now I understand that the problem was in training data quality rather than model size.
 
